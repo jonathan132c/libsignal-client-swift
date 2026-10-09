@@ -10,7 +10,7 @@ set -euo pipefail
 
 VERSION="${1:?usage: build-xcframework.sh <version, e.g. 0.79.1>}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OWNER_REPO="${GITHUB_REPOSITORY:-david2701/LibSignalClient-SPM}"
+OWNER_REPO="${GITHUB_REPOSITORY:-jonathan132c/libsignal-client-swift}"
 OUT="$REPO_ROOT/build"; rm -rf "$OUT"; mkdir -p "$OUT"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 
@@ -22,9 +22,11 @@ cd "$WORK/ls"
 git checkout "v${VERSION}"
 test -f swift/build_ffi.sh || { echo "checkout failed: no swift/build_ffi.sh"; exit 1; }
 
-# libsignal pins a nightly toolchain (file is `rust-toolchain`, no .toml). Install it + iOS targets FOR IT.
+# libsignal pins its toolchain in `rust-toolchain` (no .toml): a nightly up to 0.79, a plain stable
+# version such as 1.98.1 by 0.105. Install whichever it names + the Apple targets FOR IT.
 TC_FILE="rust-toolchain"; [ -f "$TC_FILE" ] || TC_FILE="rust-toolchain.toml"
-TOOLCHAIN="$(grep -oE 'nightly-[0-9-]+' "$TC_FILE" | head -1)"
+TOOLCHAIN="$(grep -oE 'nightly-[0-9-]+|[0-9]+\.[0-9]+(\.[0-9]+)?' "$TC_FILE" | head -1)"
+[ -n "$TOOLCHAIN" ] || { echo "no toolchain found in $TC_FILE"; exit 1; }
 echo "==> rust toolchain: $TOOLCHAIN"
 rustup toolchain install "$TOOLCHAIN" --profile minimal
 
@@ -35,7 +37,11 @@ rustup toolchain install "$TOOLCHAIN" --profile minimal
 # were eliminated/resolved under fat LTO) → consumer link fails with "Undefined _ring_core_...p256_point_mul_base_vartime".
 perl -i -pe 's/CARGO_PROFILE_RELEASE_LTO=fat/CARGO_PROFILE_RELEASE_LTO=off/; s/-flto=full //g; s/-DOPENSSL_SMALL //g;' swift/build_ffi.sh
 
-TARGETS=(aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios)
+# aarch64-apple-darwin: the macOS slice, so a package that depends on this one still builds and
+# tests with plain `swift build` / `swift test` on an Apple-silicon Mac or CI runner (no simulator).
+# build_ffi.sh applies LTO only to -ios targets, so the macOS lib is plain Mach-O already.
+export MACOSX_DEPLOYMENT_TARGET=11.0
+TARGETS=(aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios aarch64-apple-darwin)
 rustup target add --toolchain "$TOOLCHAIN" "${TARGETS[@]}"
 for t in "${TARGETS[@]}"; do
   echo "==> building libsignal_ffi for $t (no LTO)"
@@ -58,6 +64,7 @@ rm -rf "$OUT/SignalFfi.xcframework"
 xcodebuild -create-xcframework \
   -library "target/aarch64-apple-ios/release/libsignal_ffi.a" -headers "$HDRS" \
   -library "$WORK/libsignal_ffi_sim.a" -headers "$HDRS" \
+  -library "target/aarch64-apple-darwin/release/libsignal_ffi.a" -headers "$HDRS" \
   -output "$OUT/SignalFfi.xcframework"
 
 echo "==> zip + checksum"

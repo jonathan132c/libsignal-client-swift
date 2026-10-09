@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 // Upstream signalapp/libsignal version this release tracks. Keep in sync with the tag,
@@ -7,7 +7,8 @@ let libsignalVersion = "0.79.1"
 
 let package = Package(
     name: "LibSignalClient",
-    platforms: [.iOS(.v13), .macOS(.v11)],
+    // The binary is built for iOS 15 (upstream build_ffi.sh) and macOS 11 arm64 (build-xcframework.sh).
+    platforms: [.iOS(.v15), .macOS(.v11)],
     products: [
         .library(name: "LibSignalClient", targets: ["LibSignalClient"]),
     ],
@@ -22,7 +23,9 @@ let package = Package(
         .target(
             name: "LibSignalClient",
             dependencies: ["SignalFfi"],
-            path: "Sources/LibSignalClient"
+            path: "Sources/LibSignalClient",
+            // as upstream swift/Package.swift
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
     ]
 )

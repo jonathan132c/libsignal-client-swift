@@ -1,5 +1,12 @@
 # LibSignalClient-SPM
 
+> **Fork note (jonathan132c/libsignal-client-swift).** Forked from
+> [david2701/LibSignalClient-SPM](https://github.com/david2701/LibSignalClient-SPM) for the msgr iOS app.
+> Changes: the xcframework also carries a **macOS arm64** slice (so dependents build and test with
+> plain `swift build` / `swift test`), the build script reads the stable toolchain libsignal pins since
+> 0.10x, and the manifest matches upstream (tools 6.0, strict concurrency, iOS 15 / macOS 11).
+> Use `.package(url: "https://github.com/jonathan132c/libsignal-client-swift", exact: "<libsignal version>")`.
+
 **Unofficial Swift Package Manager (SPM) distribution of [signalapp/libsignal](https://github.com/signalapp/libsignal)'s `LibSignalClient`.**
 
 Signal only supports LibSignalClient via **CocoaPods** — [its docs say SPM "is not supported"](https://github.com/signalapp/libsignal/blob/main/swift/README.md), and Signal's prebuilt `libsignal_ffi.a` embeds bitcode (from BoringSSL) so it can't be wrapped in an `.xcframework`. This mirror closes that gap: CI builds the Rust FFI **from source with no bitcode**, packages it as an `.xcframework`, and publishes it as a release asset that a plain SPM `binaryTarget` can consume.

@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Upstream signalapp/libsignal version (e.g. 0.79.1)"
+        description: "Upstream signalapp/libsignal version (e.g. 0.105.0)"
         required: true
-        default: "0.79.1"
+        default: "0.105.0"
 
 permissions:
   contents: write
